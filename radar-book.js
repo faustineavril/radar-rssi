@@ -42,8 +42,7 @@
       autoplayPages: 4,          // nombre de pages tournées automatiquement à l'arrivée
       autoplayOncePerSession: true,
       label: 'Radar RSSI',
-      coverKicker: 'Rétrospective',
-      coverTitle: '15 ans',
+      focusLabel: 'Focus de l’année',
       hint: 'Faites défiler pour remonter le temps',
       pageRatio: 'auto'          // 'auto' = déduit de la 1re image
     }, cfg.options || {});
@@ -83,8 +82,8 @@
     book.setAttribute('aria-hidden', 'true');
 
     var base = el('div', 'wrb-base');
-    var cover = el('div', 'wrb-face wrb-cover');
-    cover.innerHTML = this.yearCard(0, true);
+    var cover = el('div', 'wrb-face');
+    cover.innerHTML = this.yearCard(0);
     base.appendChild(cover);
     book.appendChild(base);
 
@@ -106,7 +105,7 @@
       if (it[k].width) img.width = it[k].width;
       if (it[k].height) img.height = it[k].height;
       img.dataset.src = it[k].src;
-      if (it[k].srcset) { img.dataset.srcset = it[k].srcset; img.sizes = '(max-width: 760px) 92vw, 70vw'; }
+      if (it[k].srcset) { img.dataset.srcset = it[k].srcset; img.sizes = '(max-width: 760px) 92vw, 48vw'; }
       (function (img, box, k) {
         img.addEventListener('load', function () {
           img.classList.add('is-loaded'); box.classList.add('is-loaded');
@@ -126,7 +125,7 @@
       front.appendChild(el('div', 'wrb-shade'));
 
       var back = el('div', 'wrb-face wrb-face--back');
-      back.innerHTML = k + 1 < n ? this.yearCard(k + 1, false) : '';
+      back.innerHTML = k + 1 < n ? this.yearCard(k + 1) : '';
       back.appendChild(el('div', 'wrb-shade'));
 
       leaf.appendChild(front);
@@ -182,9 +181,12 @@
     this.live.setAttribute('aria-atomic', 'true');
     var help = el('p', 'wrb-sr', 'Utilisez les flèches du clavier ou les boutons précédent et suivant pour parcourir les ' + n + ' radars. Entrée pour agrandir.');
     help.id = 'wrb-help-' + Math.random().toString(36).slice(2, 8);
-    vp.setAttribute('aria-describedby', help.id);
 
+    this.note = el('div', 'wrb-note');
+    this.note.id = help.id + '-note';
+    vp.setAttribute('aria-describedby', help.id + ' ' + this.note.id);
     sticky.appendChild(stage);
+    sticky.appendChild(this.note);
     sticky.appendChild(hud);
     sticky.appendChild(this.live);
     sticky.appendChild(help);
@@ -199,35 +201,38 @@
     this.dlg = dlg;
   };
 
-  RadarBook.prototype.yearCard = function (i, isCover) {
+  // Page de gauche : l'année en grand, le focus de l'année et le résumé de l'édition
+  RadarBook.prototype.yearCard = function (i) {
     var d = this.items[i], n = this.n, y = String(d.year);
     var track = '';
     for (var j = 0; j < n; j++) track += '<i' + (j <= i ? ' class="on"' : '') + '></i>';
-    var big = '<p class="wrb-yearcard__year">' + esc(y.slice(0, 2)) + '<span>' + esc(y.slice(2)) + '</span></p>';
-    if (isCover) {
-      return '<div class="wrb-yearcard">' +
-        '<div class="wrb-yearcard__top"><span>' + esc(this.o.coverKicker) + '</span><span>' + esc(this.items[0].year) + ' → ' + esc(this.items[n - 1].year) + '</span></div>' +
-        '<div><p class="wrb-yearcard__year">' + esc(this.o.coverTitle) + '<span class="wrb-cover__range">de priorités RSSI, radar après radar</span></p>' +
-        '<div class="wrb-yearcard__track">' + track + '</div></div>' +
-        '<div class="wrb-yearcard__bottom"><span>Point de départ</span><b>' + esc(y) + '</b></div></div>';
-    }
     return '<div class="wrb-yearcard">' +
       '<div class="wrb-yearcard__top"><span>' + esc(this.o.label) + '</span><span>' + pad(i + 1) + ' / ' + pad(n) + '</span></div>' +
-      '<div>' + big + (d.caption ? '<p class="wrb-yearcard__caption">' + esc(d.caption) + '</p>' : '') +
-      '<div class="wrb-yearcard__track">' + track + '</div></div>' +
-      '<div class="wrb-yearcard__bottom"><span>' + (i === n - 1 ? 'Édition la plus récente' : 'Année') + '</span><span>' + esc(y) + '</span></div></div>';
+      '<div class="wrb-yearcard__main">' +
+        '<p class="wrb-yearcard__year">' + esc(y.slice(0, 2)) + '<span>' + esc(y.slice(2)) + '</span></p>' +
+        (d.focus ? '<p class="wrb-yearcard__label">' + esc(this.o.focusLabel) + '</p><p class="wrb-yearcard__focus">' + esc(d.focus) + '</p>' : '') +
+        (d.summary ? '<p class="wrb-yearcard__summary">' + esc(d.summary) + '</p>' : '') +
+      '</div>' +
+      '<div class="wrb-yearcard__bottom"><div class="wrb-yearcard__track">' + track + '</div>' +
+      '<span>' + esc(this.items[0].year) + '</span><span>' + esc(this.items[n - 1].year) + '</span></div></div>';
   };
 
   /* ---------------------------------------------------------------- Mise en page */
   RadarBook.prototype.layout = function () {
     var s = this.stage.getBoundingClientRect();
     if (!s.width || !s.height) return;
-    var r = this.ratio;
-    // double page pour les radars « portrait / carré », page unique pour les radars paysage
-    var spread = s.width >= 820 && r < 1.2;
-    var ph = Math.min(s.height, s.width / ((spread ? 2 : 1) * r));
-    if (spread && ph * r < 340) { spread = false; ph = Math.min(s.height, s.width / r); }
-    var pw = Math.floor(ph * r); ph = Math.floor(ph);
+    var r = this.ratio, pw, ph;
+    // Double page (année + texte à gauche, radar à droite) dès que la largeur le permet ;
+    // les pages occupent toute la hauteur disponible (format entre 0,72 et 1,6).
+    var spread = s.width >= 900 && s.height >= 380;
+    if (spread) {
+      pw = Math.min(s.width / 2, s.height * 1.6);
+      ph = Math.min(s.height, pw / 0.72);
+    } else {
+      ph = Math.min(s.height, s.width / r);
+      pw = ph * r;
+    }
+    pw = Math.floor(pw); ph = Math.floor(ph);
     this.root.style.setProperty('--wrb-pw', pw + 'px');
     this.root.style.setProperty('--wrb-ph', ph + 'px');
     this.root.classList.toggle('is-single', !spread);
@@ -364,6 +369,12 @@
       if (j === i) t.setAttribute('aria-current', 'step'); else t.removeAttribute('aria-current');
       t.classList.toggle('is-past', j < i);
     });
+    if (this.note && this.note._i !== i) {
+      this.note._i = i;
+      this.note.innerHTML = (d.focus ? '<p class="wrb-note__focus"><span>' + esc(this.o.focusLabel) + ' ' + esc(d.year) + '</span>' + esc(d.focus) + '</p>' : '') +
+        (d.summary ? '<p class="wrb-note__summary">' + esc(d.summary) + '</p>' : '');
+      if (dir && !RM.matches && this.note.animate) this.note.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 420, easing: 'ease-out' });
+    }
     var span = this.yearVal.firstChild;
     if (span.textContent !== String(d.year)) {
       span.textContent = d.year;
@@ -520,7 +531,9 @@
       self.go(i);
     });
 
-    this.vp.addEventListener('click', function () { self.zoom(); });
+    this.vp.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('.wrb-face--front')) self.zoom();
+    });
 
     // Démarrage automatique à l'arrivée dans le viewport
     if ('IntersectionObserver' in window) {

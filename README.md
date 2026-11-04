@@ -10,6 +10,12 @@ Module web autonome (HTML + CSS + JS natif, **aucune dépendance**), conçu pour
 | `index.html` | Page autonome (publiable telle quelle, ex. GitHub Pages) |
 | `images/` | 16 radars extraits de `CISO_Radar_2011-2026.pptx` : `radar-AAAA.webp` (1800 px), `-900.webp` (mobile), `-hd.webp` (agrandissement) |
 
+## 0. Textes (focus et résumé de chaque année)
+
+Les textes de la page de gauche sont dans `content/editions.json` (`focus` : 2 à 6 mots, `summary` : 35 à 55 mots).
+**Ils ont été rédigés à partir du contenu visible de chaque radar** (domaines, sujets mis en avant), les articles d'accompagnement n'étant pas accessibles lors de la rédaction : à relire et remplacer par les résumés officiels si besoin.
+Après modification : `python3 tools/build.py` régénère `index.html` et `embed.html`.
+
 ## 1. Origine des images
 
 - 2011 → 2021, 2023, 2024, 2026 : rendu de la diapositive complète (LibreOffice, 240 dpi). Les polices propriétaires absentes du serveur de rendu ont été remplacées par des équivalents (Century Gothic → URW Gothic, Gotham Condensed Light → Sofia Sans Extra Condensed, Tahoma → Liberation Sans) : quelques retours à la ligne peuvent différer de PowerPoint, notamment en 2017 et 2018. **Pour une fidélité parfaite, exporter les diapositives depuis PowerPoint (Fichier › Exporter › PNG) et remplacer les fichiers.**

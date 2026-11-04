@@ -48,7 +48,7 @@
   position: sticky; top: 0;
   height: 100vh; height: 100svh;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-columns: minmax(0, 1fr);
   gap: clamp(12px, 2.2vh, 28px);
   padding: clamp(18px, 4vh, 48px) clamp(16px, 4vw, 64px) clamp(16px, 3vh, 36px);
@@ -86,7 +86,6 @@
   width: calc(var(--wrb-pw, 300px) * 2);
   height: var(--wrb-ph, 400px);
   outline: none;
-  cursor: zoom-in;
 }
 .wrb-viewport:focus-visible { box-shadow: 0 0 0 3px var(--wrb-bg), 0 0 0 5px var(--wrb-accent); border-radius: 4px; }
 
@@ -132,6 +131,7 @@
   backface-visibility: hidden; -webkit-backface-visibility: hidden;
 }
 .wrb-face--back { transform: rotateY(180deg); }
+.wrb-face--front { cursor: zoom-in; }
 .wrb-shade {
   position: absolute; inset: 0; pointer-events: none; opacity: 0;
 }
@@ -151,6 +151,7 @@
   padding: calc(var(--wrb-pw, 300px) * .05);
   padding-bottom: 0;
 }
+.wrb:not(.is-single) .wrb-radar { padding: calc(var(--wrb-pw, 300px) * .035); padding-bottom: 0; }
 .wrb-radar__img {
   position: relative; min-height: 0;
   display: grid; place-items: center;
@@ -176,37 +177,53 @@
 }
 .wrb-folio b { color: var(--wrb-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* --- Page année (verso) --- */
+/* --- Page année (gauche / verso) --- */
 .wrb-yearcard {
   position: absolute; inset: 0;
-  display: flex; flex-direction: column; justify-content: space-between;
-  padding: calc(var(--wrb-pw, 300px) * .075);
+  display: flex; flex-direction: column; justify-content: space-between; gap: calc(var(--wrb-ph, 400px) * .03);
+  padding: calc(var(--wrb-pw, 300px) * .075) calc(var(--wrb-pw, 300px) * .08);
 }
 .wrb-yearcard__top, .wrb-yearcard__bottom {
-  display: flex; justify-content: space-between; gap: 12px;
-  font-size: clamp(9px, calc(var(--wrb-pw, 300px) * .028), 13px);
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font-size: clamp(9px, calc(var(--wrb-pw, 300px) * .019), 12px);
   letter-spacing: .14em; text-transform: uppercase; color: var(--wrb-muted);
 }
-.wrb-yearcard__bottom { border-top: 1px solid var(--wrb-line); padding-top: calc(var(--wrb-pw, 300px) * .03); }
+.wrb-yearcard__main { min-height: 0; overflow: hidden; }
 .wrb-yearcard__year {
-  margin: 0; font-size: calc(var(--wrb-pw, 300px) * .3); line-height: .9; font-weight: 300;
-  letter-spacing: -.055em; font-variant-numeric: tabular-nums; color: var(--wrb-ink);
+  margin: 0 0 calc(var(--wrb-ph, 400px) * .04); font-size: min(calc(var(--wrb-pw, 300px) * .24), calc(var(--wrb-ph, 400px) * .2));
+  line-height: .86; font-weight: 300; letter-spacing: -.055em; font-variant-numeric: tabular-nums; color: var(--wrb-ink);
 }
 .wrb-yearcard__year span { color: var(--wrb-accent); font-weight: 500; }
-.wrb-yearcard__caption {
-  margin: calc(var(--wrb-pw, 300px) * .04) 0 0; max-width: 26ch;
-  font-size: clamp(11px, calc(var(--wrb-pw, 300px) * .036), 17px); line-height: 1.4; color: var(--wrb-muted);
+.wrb-yearcard__label {
+  margin: 0 0 .5em; font-size: clamp(9px, calc(var(--wrb-pw, 300px) * .018), 12px); font-weight: 600;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--wrb-accent);
 }
-.wrb-yearcard__track {
-  display: flex; gap: 3px; margin-top: calc(var(--wrb-pw, 300px) * .05);
+.wrb-yearcard__focus {
+  margin: 0; max-width: 20ch;
+  font-size: clamp(16px, calc(var(--wrb-pw, 300px) * .046), 32px); line-height: 1.12; font-weight: 600; letter-spacing: -.02em;
 }
+.wrb-yearcard__summary {
+  margin: calc(var(--wrb-ph, 400px) * .03) 0 0; max-width: 46ch;
+  padding-top: calc(var(--wrb-ph, 400px) * .03); border-top: 1px solid var(--wrb-line);
+  font-size: clamp(12px, calc(var(--wrb-pw, 300px) * .024), 16px); line-height: 1.55; color: var(--wrb-muted);
+}
+.wrb-yearcard__track { display: flex; gap: 3px; width: 100%; margin-bottom: 4px; }
 .wrb-yearcard__track i { flex: 1; height: 2px; background: var(--wrb-line); }
 .wrb-yearcard__track i.on { background: var(--wrb-accent); }
 
-.wrb-cover .wrb-yearcard__year { font-size: calc(var(--wrb-pw, 300px) * .22); }
-.wrb-cover .wrb-cover__range {
-  display: block; margin-top: calc(var(--wrb-pw, 300px) * .03);
-  font-size: calc(var(--wrb-pw, 300px) * .05); letter-spacing: -.01em; color: var(--wrb-muted); font-weight: 400;
+/* --- Résumé sous le livre (page unique / mobile) ; lu par les lecteurs d'écran en double page --- */
+.wrb-note { min-height: 0; }
+.wrb-note p { margin: 0; }
+.wrb-note__focus { font-size: 17px; font-weight: 600; line-height: 1.25; letter-spacing: -.01em; }
+.wrb-note__focus span {
+  display: block; margin-bottom: 4px; font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--wrb-accent);
+}
+.wrb-note__summary {
+  margin-top: 6px !important; font-size: 13.5px; line-height: 1.5; color: var(--wrb-muted);
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+}
+.wrb:not(.is-single) .wrb-note {
+  position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
 
 /* --- Barre de pilotage --- */
@@ -298,3 +315,7 @@
 .wrb-noscript { padding: 48px 24px; display: grid; gap: 32px; max-width: 900px; margin: 0 auto; }
 .wrb-noscript figure { margin: 0; }
 .wrb-noscript img { max-width: 100%; height: auto; }
+
+/* Double page : l'année est déjà en grand sur la page de gauche */
+.wrb:not(.is-single) .wrb-year { display: none; }
+.wrb:not(.is-single) .wrb-hud { grid-template-columns: minmax(0, 1fr) auto; }
