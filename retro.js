@@ -76,4 +76,11 @@ hbars('c3',[['Apparus en 2025–2026',68,'68 (43 %)'],['Apparus en 2023–2024',
 const HM=[["Identité & accès",20,23,24,23],["Pilotage, organisation & talents",24,15,16,19],["Détection & réponse",7,7,7,10],["AppSec & DevSecOps",5,8,8,10],["Données & cryptographie",8,9,7,8],["Cloud",7,9,10,7],["Réglementation & conformité",6,7,7,7],["OT / industriel / IoT",3,4,4,7],["IA",0,2,2,6],["Résilience aux attaques destructrices",2,5,6,6],["Tiers & écosystème",2,5,6,6],["Tests offensifs & assurance",2,3,5,5],["Continuité classique",14,10,6,5],["Zero Trust & périmètre",5,6,6,4]];
 const tb=document.querySelector('#retro-heat tbody');
 HM.forEach(r=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${r[0]}</td>`+r.slice(1).map(v=>{const a=Math.min(v/24,1);return `<td class="c" style="background:color-mix(in srgb,var(--m-t) ${Math.round(a*70)}%,transparent);${a>0.55?'color:#fff':''}">${v}%</td>`}).join('')+(()=>{const d=r[4]-r[1];return `<td class="c ${d>=3?'up':''}">${d>0?'+':''}${d} pts</td>`})();tb.appendChild(tr)});
+
+// Familles de trajectoires (fichier « Radars RSSI - mots-clés », feuille Analyse trajectoires)
+hbars('c8',[['Éclairs isolés',305,'305 (42 %)'],['Étoiles filantes',127,'127 (17 %)'],['Nouveaux signaux',102,'102 (14 %)'],['Ever emerging',80,'80 (11 %)'],['Trajectoires stables',49,'49 (7 %)'],['Slow-risers',31,'31 (4 %)'],['Piliers et socle durable',16,'16 (2 %)'],['En recul ou réinventés',15,'15 (2 %)'],['Résurgents et intermittents',4,'4 (1 %)']],300,320,'var(--m-t)');
+document.querySelectorAll('.retro .strip[data-traj]').forEach(function(st){
+  var lv={};(st.getAttribute('data-traj')||'').replace(/(\d{4}):([MTE])/g,function(_,y,l){lv[y]=l;});
+  for(var y=2011;y<=2027;y++){var c=document.createElement('i');if(lv[y])c.className='lv-'+lv[y];c.title=y+(lv[y]?' : '+({M:'Mature',T:'Trending',E:'Emerging'})[lv[y]]:' : absent');st.appendChild(c);}
+});
 })();

@@ -78,3 +78,29 @@
   background: #14112b; color: #fff; font-size: .78rem; line-height: 1.35; padding: 6px 9px; border-radius: 4px;
 }
 .retro-tip[hidden] { display: none; }
+
+/* --- Familles de trajectoires --- */
+.retro .fam-group { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.retro .fam-group__title { margin: 0; font-size: 1.05rem; font-weight: 600; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.retro .fam-group__title span { font-family: var(--r-mono); font-size: .75rem; font-weight: 400; color: var(--r-accent); }
+.retro .fams { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.retro .fam { background: var(--r-surface); border: 1px solid var(--r-rule); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.retro .fam-head { display: flex; flex-direction: column; gap: 2px; }
+.retro .fam h4 { margin: 0; font-size: 1.05rem; font-weight: 600; line-height: 1.2; letter-spacing: -.01em; }
+.retro .fam-n { font-size: .78rem; color: var(--r-muted); }
+.retro .fam-n b { font-size: 1.35rem; font-weight: 300; color: var(--r-accent); letter-spacing: -.02em; margin-right: 2px; }
+.retro .fam p { font-size: .85rem; line-height: 1.45; color: var(--r-ink-2); }
+.retro .fam .chip { font-size: .68rem; }
+.retro .fam-ex { display: flex; flex-direction: column; gap: 4px; }
+.retro .fam-ex__lbl { font-family: var(--r-mono); font-size: .68rem; color: var(--r-muted); }
+.retro .strip { display: grid; grid-template-columns: repeat(17, 1fr); gap: 2px; }
+.retro .strip i, .retro .strip-legend i { display: block; height: 10px; border-radius: 2px; background: var(--r-bg); border: 1px solid var(--r-rule); }
+.retro .lv-M { background: var(--m-m) !important; border-color: var(--m-m) !important; }
+.retro .lv-T { background: var(--m-t) !important; border-color: var(--m-t) !important; }
+.retro .lv-E { background: var(--m-e) !important; border-color: var(--m-e) !important; }
+.retro .strip-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: .78rem; color: var(--r-ink-2); }
+.retro .strip-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.retro .strip-legend i { width: 14px; }
+.retro .strip-legend__yrs { color: var(--r-muted); }
+
+@media (min-width: 700px) { .retro .fams--4 { grid-template-columns: repeat(2, 1fr); } }
