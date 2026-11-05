@@ -13,8 +13,7 @@
   --wrb-line: rgba(20, 17, 43, .12);
   --wrb-font: inherit;
 
-  /* --- Scroll : distance de défilement par radar --- */
-  --wrb-step: 55svh;
+  --wrb-interval: 5s;   /* aligné sur l'option interval du script */
   --wrb-n: 15;
 
   position: relative;
@@ -23,10 +22,6 @@
   font-family: var(--wrb-font);
 }
 /* La hauteur « scrollable » n'est appliquée qu'une fois le JS prêt */
-.wrb.is-ready { height: calc(100svh + (var(--wrb-n) - 1) * var(--wrb-step)); }
-@supports not (height: 1svh) {
-  .wrb.is-ready { --wrb-step: 55vh; height: calc(100vh + (var(--wrb-n) - 1) * var(--wrb-step)); }
-}
 .wrb:not(.is-ready) .wrb-sticky { display: none; }
 .wrb *, .wrb *::before, .wrb *::after { box-sizing: border-box; }
 
@@ -45,8 +40,8 @@
 
 /* --- Zone ancrée --- */
 .wrb-sticky {
-  position: sticky; top: 0;
-  height: 100vh; height: 100svh;
+  position: relative;
+  height: min(100vh, 1000px); height: min(100svh, 1000px); min-height: 560px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-columns: minmax(0, 1fr);
@@ -151,7 +146,7 @@
   padding: calc(var(--wrb-pw, 300px) * .05);
   padding-bottom: 0;
 }
-.wrb:not(.is-single) .wrb-radar { padding: calc(var(--wrb-pw, 300px) * .035); padding-bottom: 0; }
+.wrb:not(.is-single) .wrb-radar { padding: calc(var(--wrb-pw, 300px) * .045); }
 .wrb-radar__img {
   position: relative; min-height: 0;
   display: grid; place-items: center;
@@ -290,7 +285,6 @@
 
 /* --- Mobile / tablette portrait --- */
 @media (max-width: 760px) {
-  .wrb { --wrb-step: 48svh; }
   .wrb-sticky { gap: 12px; padding-top: 20px; }
   .wrb-head { display: block; }
   .wrb-title { font-size: 21px; }
@@ -302,7 +296,7 @@
   .wrb-ticks { grid-area: ticks; }
   .wrb-tick__y { display: none; }
   .wrb-tick { height: 24px; }
-  .wrb-radar { padding: calc(var(--wrb-pw, 300px) * .025); padding-bottom: 0; }
+  .wrb-radar { padding: calc(var(--wrb-pw, 300px) * .025); }
 }
 
 /* --- Sans animation --- */
@@ -319,3 +313,25 @@
 /* Double page : l'année est déjà en grand sur la page de gauche */
 .wrb:not(.is-single) .wrb-year { display: none; }
 .wrb:not(.is-single) .wrb-hud { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* Page de droite : le radar seul, centré */
+.wrb-radar { grid-template-rows: minmax(0, 1fr); }
+.wrb-folio { display: none; }
+
+/* Bouton lecture / pause, avec jauge du délai avant la page suivante */
+.wrb-play { position: relative; }
+.wrb-play__ring { position: absolute; inset: -1px; width: calc(100% + 2px) !important; height: calc(100% + 2px) !important; transform: rotate(-90deg); pointer-events: none; }
+.wrb-play__ring circle { fill: none; stroke: var(--wrb-accent); stroke-width: 2; stroke-dasharray: 141.4; stroke-dashoffset: 141.4; opacity: 0; }
+.wrb.is-counting .wrb-play__ring circle { opacity: 1; animation: wrb-count var(--wrb-interval) linear forwards; }
+@keyframes wrb-count { from { stroke-dashoffset: 141.4; } to { stroke-dashoffset: 0; } }
+.wrb-play:hover:not(:disabled) .wrb-play__ring circle { stroke: #fff; }
+@media (prefers-reduced-motion: reduce) { .wrb.is-counting .wrb-play__ring circle { animation: none; opacity: 0; } }
+
+/* Mobile : barre de pilotage compacte */
+@media (max-width: 760px) {
+  .wrb-year__label { display: none; }
+  .wrb-year__val { font-size: 30px; }
+  .wrb-ctrl { gap: 6px; }
+  .wrb-count { font-size: 13px; margin-right: 2px; }
+  .wrb-btn { width: 40px; height: 40px; }
+}

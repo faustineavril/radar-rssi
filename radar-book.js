@@ -10,6 +10,9 @@
   var SVG_PREV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
   var SVG_NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
   var SVG_ZOOM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>';
+  var SVG_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="6" width="3.2" height="12" rx="1"/><rect x="13.8" y="6" width="3.2" height="12" rx="1"/></svg>';
+  var SVG_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.5 6.2v11.6a.8.8 0 0 0 1.2.7l9.2-5.8a.8.8 0 0 0 0-1.4L9.7 5.5a.8.8 0 0 0-1.2.7z"/></svg>';
+  var SVG_RING = '<svg class="wrb-play__ring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22.5"/></svg>';
   var SVG_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -39,26 +42,24 @@
     this.items = cfg.items;
     this.n = this.items.length;
     this.o = Object.assign({
-      autoplayPages: 4,          // nombre de pages tournées automatiquement à l'arrivée
-      autoplayOncePerSession: true,
+      interval: 5000,            // délai entre deux pages en lecture automatique (ms)
       label: 'Radar RSSI',
       focusLabel: 'Focus de l’année',
-      hint: 'Faites défiler pour remonter le temps',
       pageRatio: 'auto'          // 'auto' = déduit de la 1re image
     }, cfg.options || {});
     this.current = 0;            // page affichée (état du livre)
     this.target = 0;             // page visée
     this.zc = 0;
-    this.lockUntil = 0; this.lastWheel = 0; this.lastAbs = 0;
-    this.autoplaying = false;
+    this.playing = !RM.matches;  // lecture automatique (désactivée si l'utilisateur réduit les animations)
+    this.visible = false;
     this.ratio = typeof this.o.pageRatio === 'number' ? this.o.pageRatio : 0.93;
     this.build();
     root.classList.add('is-ready');
     this.layout();
-    var start = this.scrollIndex();     // rechargement en milieu de séquence : on reprend où l'on est
-    this.jump(start);
-    this.load(start);
+    this.jump(0);
+    this.load(0);
     this.bind();
+    this.setPlaying(this.playing);
     this.idlePreload();
   }
 
@@ -68,10 +69,6 @@
     root.style.setProperty('--wrb-n', n);
     var sticky = root.querySelector('.wrb-sticky');
     var head = sticky.querySelector('.wrb-head');
-
-    this.hint = el('p', 'wrb-hint', '<span>' + esc(this.o.hint) + '</span><span class="wrb-hint__line" aria-hidden="true"></span>');
-    this.hint.setAttribute('aria-hidden', 'true');
-    head.appendChild(this.hint);
 
     // --- Livre ---
     var stage = el('div', 'wrb-stage');
@@ -119,8 +116,6 @@
       })(img, box, k);
       box.appendChild(img);
       fig.appendChild(box);
-      fig.appendChild(el('figcaption', 'wrb-folio',
-        '<span>' + esc(this.o.label) + ' <b>' + esc(it[k].year) + '</b></span><b>' + pad(k + 1) + ' / ' + pad(n) + '</b>'));
       front.appendChild(fig);
       front.appendChild(el('div', 'wrb-shade'));
 
@@ -169,7 +164,11 @@
     this.prevBtn.addEventListener('click', function () { self.go(self.target - 1); });
     this.nextBtn.addEventListener('click', function () { self.go(self.target + 1); });
     this.zoomBtn.addEventListener('click', function () { self.zoom(); });
+    this.playBtn = el('button', 'wrb-btn wrb-play');
+    this.playBtn.type = 'button';
+    this.playBtn.addEventListener('click', function () { self.setPlaying(!self.playing); });
     ctrl.appendChild(this.count);
+    ctrl.appendChild(this.playBtn);
     ctrl.appendChild(this.prevBtn);
     ctrl.appendChild(this.nextBtn);
     ctrl.appendChild(this.zoomBtn);
@@ -179,7 +178,7 @@
     this.live = el('p', 'wrb-sr');
     this.live.setAttribute('aria-live', 'polite');
     this.live.setAttribute('aria-atomic', 'true');
-    var help = el('p', 'wrb-sr', 'Utilisez les flèches du clavier ou les boutons précédent et suivant pour parcourir les ' + n + ' radars. Entrée pour agrandir.');
+    var help = el('p', 'wrb-sr', 'Les ' + n + ' radars défilent automatiquement toutes les ' + Math.round(this.o.interval / 1000) + ' secondes ; le bouton pause arrête le défilement. Utilisez les flèches du clavier ou les boutons précédent et suivant pour naviguer, Entrée pour agrandir.');
     help.id = 'wrb-help-' + Math.random().toString(36).slice(2, 8);
 
     this.note = el('div', 'wrb-note');
@@ -236,38 +235,13 @@
     this.root.style.setProperty('--wrb-pw', pw + 'px');
     this.root.style.setProperty('--wrb-ph', ph + 'px');
     this.root.classList.toggle('is-single', !spread);
-    this.stepPx = (this.root.offsetHeight - this.sticky.offsetHeight) / Math.max(1, this.n - 1);
-  };
-
-  /* ---------------------------------------------------------------- Scroll */
-  RadarBook.prototype.scrollIndex = function () {
-    if (!this.stepPx) return 0;
-    var top = this.root.getBoundingClientRect().top;
-    return clamp(Math.round(-top / this.stepPx), 0, this.n - 1);
-  };
-  RadarBook.prototype.scrollToIndex = function (i) {
-    var y = window.pageYOffset + this.root.getBoundingClientRect().top + i * this.stepPx;
-    this.ignoreScrollUntil = performance.now() + 80;
-    try { window.scrollTo({ top: Math.round(y), behavior: 'instant' }); }
-    catch (e) { window.scrollTo(0, Math.round(y)); }
-  };
-  RadarBook.prototype.isPinned = function () {
-    var r = this.root.getBoundingClientRect();
-    return r.top <= 1 && r.bottom >= window.innerHeight - 1;
-  };
-  RadarBook.prototype.syncScroll = function (silent) {
-    if (this.autoplaying) return;
-    var i = this.scrollIndex();
-    if (i !== this.target) this.setTarget(i, !silent);
   };
 
   /* ---------------------------------------------------------------- Navigation */
-  // Navigation explicite (boutons, clavier, molette) : on aligne le scroll puis on tourne.
+  // Navigation explicite (flèches, frise, clavier) : on tourne la page et on relance le décompte
   RadarBook.prototype.go = function (i) {
-    i = clamp(i, 0, this.n - 1);
-    this.engage();
-    this.scrollToIndex(i);
-    this.setTarget(i, true);
+    this.setTarget(clamp(i, 0, this.n - 1), true);
+    this.schedule();
   };
 
   RadarBook.prototype.setTarget = function (i, announce) {
@@ -286,6 +260,7 @@
       if (self.current === self.target) {
         self.running = false;
         if (self.announce) self.say();
+        self.schedule();
         return;
       }
       var dir = self.target > self.current ? 1 : -1;
@@ -294,9 +269,9 @@
       self.current += dir;
       self.hud(dir);
       var rm = RM.matches;
-      var dur = rm ? 0 : (self.autoplaying ? 1050 : dist > 1 ? (dist > 4 ? 520 : 640) : 920);
+      var dur = rm ? 0 : dist > 1 ? (dist > 4 ? 420 : 640) : 1000;
       var p = self.turn(k, dir, dur);
-      var gap = rm ? 0 : dist > 1 ? (dist > 4 ? 90 : 150) : null;
+      var gap = rm ? 0 : dist > 1 ? (dist > 4 ? 70 : 150) : null;
       var next = gap !== null ? wait(gap)
         : Promise.race([p, new Promise(function (r) { self._kick = r; }).then(function () { return wait(140); })]);
       next.then(step);
@@ -398,6 +373,7 @@
     img.alt = d.alt || (this.o.label + ' ' + d.year);
     this.engage();
     if (this.dlg.showModal) this.dlg.showModal(); else window.open(img.src, '_blank', 'noopener');
+    this.schedule();
   };
 
   /* ---------------------------------------------------------------- Images */
@@ -425,97 +401,42 @@
     if (document.readyState === 'complete') setTimeout(function () { idle(next, { timeout: 2000 }); }, 1200);
   };
 
-  /* ---------------------------------------------------------------- Autoplay */
-  RadarBook.prototype.autoplay = function () {
+  /* ---------------------------------------------------------------- Lecture automatique */
+  RadarBook.prototype.canPlay = function () {
+    return this.playing && this.visible && !document.hidden && !(this.dlg && this.dlg.open);
+  };
+  // Programme la page suivante <interval> ms après la fin de la page en cours ; boucle sur la 1re
+  RadarBook.prototype.schedule = function () {
     var self = this;
-    var key = 'wrb-played:' + location.pathname;
-    if (this.played || RM.matches || (this.o.autoplayOncePerSession && storage(key)) || this.engaged || this.current !== 0) return;
-    this.played = true;
-    storage(key, '1');
-    this.autoplaying = true;
-    var pages = clamp(this.o.autoplayPages, 1, this.n - 1);
-
-    function idle() {
-      return new Promise(function (r) {
-        (function chk() { if (!self.running) r(); else setTimeout(chk, 50); })();
-      });
-    }
-    var chain = wait(450), i;
-    for (i = 1; i <= pages; i++) {
-      (function (i) {
-        chain = chain.then(function () {
-          if (!self.autoplaying) return;
-          self.setTarget(i, false);
-          return idle().then(function () { return wait(180); });
-        });
-      })(i);
-    }
-    chain.then(function () { return self.autoplaying && wait(900); })
-      .then(function () {
-        if (!self.autoplaying) return;
-        self.setTarget(0, false);       // feuilletage retour : on revient au point de départ
-        return idle();
-      })
-      .then(function () { self.autoplaying = false; });
+    clearTimeout(this.timer);
+    this.root.classList.remove('is-counting');
+    if (!this.canPlay() || this.running) return;
+    void this.playBtn.offsetWidth;          // relance l'animation de la jauge
+    this.root.classList.add('is-counting');
+    this.timer = setTimeout(function () {
+      self.root.classList.remove('is-counting');
+      if (!self.canPlay()) return;
+      self.setTarget(self.target >= self.n - 1 ? 0 : self.target + 1, false);
+    }, this.o.interval);
   };
-  RadarBook.prototype.stopAutoplay = function () {
-    if (!this.autoplaying) return;
-    this.autoplaying = false;
-    this.syncScroll(false);
+  RadarBook.prototype.setPlaying = function (on) {
+    this.playing = !!on;
+    this.root.classList.toggle('is-playing', this.playing);
+    this.playBtn.innerHTML = SVG_RING + (this.playing ? SVG_PAUSE : SVG_PLAY);
+    this.playBtn.setAttribute('aria-label', this.playing ? 'Mettre en pause le défilement automatique' : 'Reprendre le défilement automatique');
+    this.playBtn.setAttribute('aria-pressed', this.playing ? 'false' : 'true');
+    this.schedule();
   };
-  RadarBook.prototype.engage = function () {
-    this.engaged = true;
-    this.root.classList.add('is-engaged');
-    this.stopAutoplay();
-  };
+  RadarBook.prototype.engage = function () {};
 
   /* ---------------------------------------------------------------- Événements */
   RadarBook.prototype.bind = function () {
     var self = this, raf = 0;
 
-    window.addEventListener('scroll', function () {
-      if (raf) return;
-      raf = requestAnimationFrame(function () {
-        raf = 0;
-        if (self.autoplaying && self.scrollIndex() !== 0) self.engage();
-        self.syncScroll(false);
-        if (self.isPinned() && self.scrollIndex() > 0) self.engage();
-      });
-    }, { passive: true });
-
     var resizeT;
     window.addEventListener('resize', function () {
       clearTimeout(resizeT);
-      resizeT = setTimeout(function () {
-        self.layout();
-        // garde l'alignement scroll ↔ page affichée
-        if (self.isPinned()) self.scrollToIndex(self.target);
-      }, 120);
-    });
-
-    // Molette : un cran = une page, tant que le module est ancré
-    window.addEventListener('wheel', function (e) {
-      if (e.ctrlKey || (self.dlg && self.dlg.open)) return;
-      var dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1);
-      if (Math.abs(dy) < Math.abs(e.deltaX)) return;
-      if (!self.isPinned() || !dy) return;
-      var dir = dy > 0 ? 1 : -1;
-      var base = self.target;
-      if ((dir > 0 && base >= self.n - 1) || (dir < 0 && base <= 0)) return; // sortie naturelle
-      e.preventDefault();
-      self.engage();
-      var now = performance.now(), abs = Math.abs(dy);
-      var gap = now - self.lastWheel;
-      var inertia = gap < 110 && abs < self.lastAbs; // traîne d'inertie des pavés tactiles
-      self.lastWheel = now; self.lastAbs = abs;
-      if (now < self.lockUntil || inertia || abs < 4) return;
-      self.lockUntil = now + (RM.matches ? 280 : 620);
-      self.go(base + dir);
-    }, { passive: false });
-
-    // Prise de contrôle manuelle
-    ['touchstart', 'pointerdown'].forEach(function (t) {
-      self.root.addEventListener(t, function () { self.engage(); }, { passive: true });
+      resizeT = setTimeout(function () { self.layout(); }, 120);
     });
 
     // Clavier (quand le focus est dans le module)
@@ -535,17 +456,19 @@
       if (e.target.closest && e.target.closest('.wrb-face--front')) self.zoom();
     });
 
-    // Démarrage automatique à l'arrivée dans le viewport
+    // La lecture automatique ne tourne que lorsque le livre est visible
     if ('IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (entries) {
+      new IntersectionObserver(function (entries) {
         entries.forEach(function (en) {
-          if (en.isIntersecting && en.intersectionRatio >= 0.55) { self.autoplay(); io.disconnect(); }
+          self.visible = en.isIntersecting && en.intersectionRatio >= 0.3;
+          self.schedule();
         });
-      }, { threshold: [0, 0.55, 1] });
-      io.observe(this.sticky);
-    }
+      }, { threshold: [0, 0.3, 0.6, 1] }).observe(this.sticky);
+    } else { this.visible = true; }
+    document.addEventListener('visibilitychange', function () { self.schedule(); });
+    this.dlg.addEventListener('close', function () { self.schedule(); });
 
-    var onRM = function () { self.layout(); };
+    var onRM = function () { self.layout(); if (RM.matches) self.setPlaying(false); };
     RM.addEventListener ? RM.addEventListener('change', onRM) : RM.addListener(onRM);
   };
 
