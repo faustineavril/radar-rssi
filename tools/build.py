@@ -45,5 +45,8 @@ embed = f'''<!-- ===== Radar Book : début du bloc à intégrer ===== -->
 open(os.path.join(ROOT, "embed.html"), "w", encoding="utf-8").write(
     '<link rel="stylesheet" href="radar-book.css">\n' + embed + '\n<script src="radar-book.js" defer></script>\n')
 tpl = open(os.path.join(ROOT, "tools/page.template.html"), encoding="utf-8").read()
-open(os.path.join(ROOT, "index.html"), "w", encoding="utf-8").write(tpl.replace("<!--EMBED-->", embed))
+analyse = open(os.path.join(ROOT, "content/analyse.html"), encoding="utf-8").read()
+open(os.path.join(ROOT, "index.html"), "w", encoding="utf-8").write(tpl.replace("<!--EMBED-->", embed).replace("<!--ANALYSE-->", analyse))
+open(os.path.join(ROOT, "embed-analyse.html"), "w", encoding="utf-8").write(
+    '<link rel="stylesheet" href="retro.css">\n' + analyse + '<script src="retro.js" defer></script>\n')
 print("ok:", len(items), "éditions")
